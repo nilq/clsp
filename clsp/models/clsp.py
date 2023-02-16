@@ -1,17 +1,17 @@
 """Contrastive Language Speech Pre-training"""
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from clsp.models.transformer import Transformer
 
-from typing import Optional
-
 
 def masked_mean(t, mask, dim: int = 1):
-    t = t.masked_fill(~mask[:, :, None], 0.)
-    return t.sum(dim = 1) / mask.sum(dim = 1)[..., None]
+    t = t.masked_fill(~mask[:, :, None], 0.0)
+    return t.sum(dim=1) / mask.sum(dim=1)[..., None]
 
 
 class CLSP(nn.Module):
@@ -120,21 +120,31 @@ class CLSP(nn.Module):
 
         # Compute latents.
         text_latents = self.to_text_latent(masked_mean(encoded_text, text_mask, dim=1))
-        speech_latents = self.to_speech_latent(masked_mean(encoded_speech, speech_mask, dim=1))
+        speech_latents = self.to_speech_latent(
+            masked_mean(encoded_speech, speech_mask, dim=1)
+        )
 
         # Normalise latents.
         text_latents = F.normalize(text_latents, dim=-1)
         speech_latents = F.normalize(speech_latents, dim=-1)
 
-
         temperature = self.temperature.exp()
-        
+
         if not return_loss:
-            similarity = torch.einsum("n d, n d -> n", text_latents, speech_latents) * temperature
+            similarity = (
+                torch.einsum("n d, n d -> n", text_latents, speech_latents)
+                * temperature
+            )
             return similarity
         else:
-            similarity = torch.einsum("i d, j d -> i j", text_latents, speech_latents) * temperature
+            similarity = (
+                torch.einsum("i d, j d -> i j", text_latents, speech_latents)
+                * temperature
+            )
             labels = torch.arange(text.shape[0], device=self.device)
 
-            loss = (F.cross_entropy(similarity, labels) + F.cross_entropy(similarity.t(), labels)) / 2
+            loss = (
+                F.cross_entropy(similarity, labels)
+                + F.cross_entropy(similarity.t(), labels)
+            ) / 2
             return loss

@@ -13,6 +13,7 @@ import torch.nn.functional as F
 
 class GeGLU(nn.Module):
     """GeGLU activation - GELU and GLU love child. (https://arxiv.org/abs/2002.05202v1)."""
+
     def forward(self, x):
         x, gates = x.chunk(2, dim=-1)
         return x * F.gelu(gates)
@@ -101,9 +102,7 @@ class MultiHeadAttention(nn.Module):
         residual = q  #
 
         # Compute query "q·k" for attention.
-        dots = torch.einsum("b h i d, b h j d -> b h i j", q, k) / np.sqrt(
-            q.shape[-1]
-        )
+        dots = torch.einsum("b h i d, b h j d -> b h i j", q, k) / np.sqrt(q.shape[-1])
 
         if mask is not None:
             _mask = einops.rearrange(mask, "b j -> b () () j")
