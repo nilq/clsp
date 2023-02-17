@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from clsp.models.transformer import Transformer
 
 
-DEFAULT_DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+DEFAULT_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def masked_mean(t, mask, dim: int = 1):
@@ -29,12 +29,12 @@ class CLSP(nn.Module):
         size_latent: int = 512,
         # Text related.
         num_text_tokens: int = 256,
-        text_encoding_depth: int = 6,
+        text_encoding_depth: int = 32,
         text_sequence_len: int = 120,
         text_heads: int = 8,
         # Speech related.
         num_speech_tokens: int = 8192,  # Fun fact: this is 2^13.
-        speech_encoding_depth: int = 6,
+        speech_encoding_depth: int = 32,
         speech_heads: int = 8,
         speech_sequence_len: int = 250,
         # Masking.

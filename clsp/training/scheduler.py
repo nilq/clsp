@@ -3,9 +3,10 @@ import numpy as np
 
 from typing import Any, Callable
 
+
 def assign_learning_rate(optimizer: Any, new_lr: float) -> None:
     """Assign learning rate to optimizer.
-    
+
     Args:
         optimizer (Any): Optimizer to assign learning rate to.
         new_lr (float): New learning rate.
@@ -40,6 +41,7 @@ def cosine_lr(optimizer: Any, base_lr: float, warmup_len: int, steps: int) -> Ca
     Returns:
         Callable: Learning rate adjuster.
     """
+
     def lr_adjuster(step: int) -> float:
         """Get learning rate for step.
 
@@ -48,7 +50,7 @@ def cosine_lr(optimizer: Any, base_lr: float, warmup_len: int, steps: int) -> Ca
 
         Returns:
             float: Adjusted learning rate for cosine schedule.
-        """        
+        """
 
         if step < warmup_len:
             lr = _warmup_lr(base_lr, warmup_len, step)

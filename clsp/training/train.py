@@ -52,10 +52,7 @@ def train(
     """Train model."""
     # Defining only optimizer, CLSP handles own loss.
     optimizer = torch.optim.AdamW(
-        params=model.parameters(),
-        lr=learning_rate,
-        betas=adamw_betas,
-        eps=adamw_eps
+        params=model.parameters(), lr=learning_rate, betas=adamw_betas, eps=adamw_eps
     )
 
     total_steps = len(data_loader) * epochs
@@ -73,10 +70,13 @@ def train(
             # Training only supports single sample at this point.
             for sample in batch:
                 text, speech_tokens = sample
-                loss = model(text.squeeze(0), speech_tokens.squeeze(0), return_loss=True)
+                loss = model(
+                    text.squeeze(0), speech_tokens.squeeze(0), return_loss=True
+                )
                 loss.backward()
 
             optimizer.step()
+
 
 def main(rank: int, world_size: int) -> None:
     """Main entry point.

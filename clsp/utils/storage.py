@@ -1,9 +1,10 @@
 """Storage utilities."""
 
-from google.cloud import storage
+from google.cloud import storage, bigquery
 from google.api_core.retry import Retry
 from functools import cache
 
+import polars as pl
 import io
 from urllib.parse import urlparse
 
@@ -22,6 +23,20 @@ def gcs_client(project: Optional[str] = None) -> storage.Client:
         storage.Client: Cloud Storage client.
     """
     return storage.Client(project=project)
+
+
+@cache
+def bq_client(project: Optional[str] = None) -> bigquery.Client:
+    """Get cached BigQuery client for project.
+
+    Args:
+        project (str): GCP project, otherwise default project.
+            Defaults to None
+
+    Returns:
+        bigquery.Client: BigQuery client.
+    """
+    return bigquery.Client(project=project)
 
 
 def blob_from_url(url: str, project: Optional[str] = None) -> storage.Blob:
@@ -62,3 +77,18 @@ def gcs_download_bytes(
     blob = blob_from_url(url)
     retry = Retry() if do_retry else None
     return blob.download_as_bytes(raw_download=raw_download, retry=retry)
+
+
+def bigquery_query(query: str, project: Optional[str]) -> pl.DataFrame:
+    """Run BigQuery query, return result.
+
+    Args:
+        query (str): Query to run.
+        project (Optional[str]): Project, otherwise will use default.
+            Defaults to None.
+
+    Returns:
+        pl.DataFrame: DataFrame containing result of query.
+    """
+    client = bq_client(project=project)
+    return pl.from_arrow(client.query(query).result().to_arrow())
