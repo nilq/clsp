@@ -12,7 +12,7 @@ from whisper.audio import log_mel_spectrogram
 
 def encoder(
     name: str = "tiny", device: Optional[torch.device | str] = None
-) -> tuple[nn.Module, int, torch.device]:
+) -> tuple[nn.Module, torch.device]:
     """Get Whisper encoder by model name.
 
     Args:
@@ -22,10 +22,10 @@ def encoder(
             Defaults to None.
 
     Returns:
-        tuple[nn.Module, int, torch.device]: Whisper encoder, its dimensions and its device.
+        tuple[nn.Module, torch.device]: Whisper encoder and its device.
     """
     model = whisper.load_model(name, device=device)
-    return model.encoder, model.dims, model.device
+    return model.encoder, model.device
 
 
 def encode_audio(
@@ -45,7 +45,7 @@ def encode_audio(
         torch.Tensor: Whisper encoding of given audio.
     """
     # Only 80 filters supported by Whisper.
-    model_encoder, dims, device = encoder(name, device=device)
+    model_encoder, device = encoder(name, device=device)
     mel = log_mel_spectrogram(audio).to(device)
 
     embeddings: list[torch.Tensor] = []
