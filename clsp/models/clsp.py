@@ -9,6 +9,9 @@ import torch.nn.functional as F
 from clsp.models.transformer import Transformer
 
 
+DEFAULT_DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
 def masked_mean(t, mask, dim: int = 1):
     t = t.masked_fill(~mask[:, :, None], 0.0)
     return t.sum(dim=1) / mask.sum(dim=1)[..., None]
@@ -38,7 +41,7 @@ class CLSP(nn.Module):
         text_mask_percentage: float = 0,
         speech_mask_percentage: float = 0,
         # Device.
-        device: Optional[str | torch.device] = None
+        device: Optional[str] = None
     ) -> None:
         """Initialise CLSP model.
 
@@ -76,7 +79,7 @@ class CLSP(nn.Module):
         self.text_mask_percentage = text_mask_percentage
         self.speech_mask_percentage = speech_mask_percentage
 
-        self.device = device
+        self.device = device or DEFAULT_DEVICE
 
     def forward(
         self, text: torch.Tensor, speech_tokens: torch.Tensor, return_loss: bool = False

@@ -2,6 +2,6 @@ name: clsp
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
+  - python=3.10
   - curl=7.80.0
   - ffmpeg=5.0.1
