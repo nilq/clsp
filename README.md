@@ -7,7 +7,9 @@ Adaptation and attempt at retraining TorToiSe's CLVP.
 - [x] Transformer architecture re-implementation.
 - [x] CLSP implementation.
 - [x] Simple distributed training loop.
-- [ ] Semi-real dataset.
+- [x] Tiktoken text encoder.
+- [x] Add Whisper encoder for speech.
+- [ ] Confirm proper contrastive training.
 
 ---
 
