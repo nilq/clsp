@@ -7,8 +7,11 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader
 from clsp.training.data import TestDataset, prepare_distributed_dataloader
 from clsp.models.clsp import CLSP
+from clsp.training.scheduler import cosine_lr
 
 import torch.multiprocessing as mp
+
+from typing import Optional
 
 import os
 import einops
@@ -37,16 +40,33 @@ def _clean_up() -> None:
 # Actual training.
 
 
-def train(model: CLSP, epochs: int, data_loader: DataLoader) -> None:
+def train(
+    model: CLSP,
+    epochs: int,
+    data_loader: DataLoader,
+    learning_rate: float = 5e-4,
+    adamw_betas: tuple[float, float] = (0.9, 0.999),
+    adamw_eps: float = 1e-8,
+    warmup_len: int = 10e4,
+) -> None:
     """Train model."""
     # Defining only optimizer, CLSP handles own loss.
-    optimizer = torch.optim.Adam(params=model.parameters())
+    optimizer = torch.optim.AdamW(
+        params=model.parameters(),
+        lr=learning_rate,
+        betas=adamw_betas,
+        eps=adamw_eps
+    )
+
+    total_steps = len(data_loader) * epochs
+    scheduler = cosine_lr(optimizer, learning_rate, warmup_len, total_steps)
 
     for epoch in range(epochs):
         print("Epoch:", epoch)
         data_loader.sampler.set_epoch(epoch)
 
         for i, *batch in enumerate(data_loader):
+            scheduler(i)
             # Needed for finding unused params in DDP model.
             optimizer.zero_grad(set_to_none=True)
 
