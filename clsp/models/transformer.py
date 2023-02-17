@@ -20,7 +20,7 @@ class GeGLU(nn.Module):
 
 
 class FeedForward(nn.Module):
-    """Feed-forward GeGLU black."""
+    """Feed-forward GeGLU block."""
 
     def __init__(self, size: int, dropout: float = 0, multiplier: float = 4) -> None:
         """Configure FF.
@@ -99,7 +99,6 @@ class MultiHeadAttention(nn.Module):
     def forward(self, x, mask=None):
         # Extract queries, keys and values.
         q, k, v = self._extract_qkv(x)
-        residual = q  #
 
         # Compute query "q·k" for attention.
         dots = torch.einsum("b h i d, b h j d -> b h i j", q, k) / np.sqrt(q.shape[-1])

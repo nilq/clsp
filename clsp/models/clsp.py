@@ -15,9 +15,7 @@ def masked_mean(t, mask, dim: int = 1):
 
 
 class CLSP(nn.Module):
-    """Basically CLIP, but for speech.
-    Adapted from TorToiSe where it was adapted from DALL-E.
-    """
+    """Basically CLIP, but for speech."""
 
     def __init__(
         self,
