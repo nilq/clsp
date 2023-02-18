@@ -18,5 +18,3 @@ Adaptation and attempt at retraining TorToiSe's CLVP.
 - [ ] Process to encode this and translate tokens.
 
 ---
-
-`torchaudio` is currently holding this project back from using Python 3.11.
