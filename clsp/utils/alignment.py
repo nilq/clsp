@@ -7,7 +7,6 @@ import numpy as np
 from dtw import dtw
 from scipy.ndimage import median_filter
 
-
 import whisper
 from whisper.tokenizer import Tokenizer, get_tokenizer
 
@@ -42,7 +41,7 @@ def whisper_model(
 
 def split_tokens_on_unicode(
     tokens: torch.Tensor, tokenizer: Tokenizer
-) -> tuple[list[str], list[int]]:
+) -> tuple[list[str], list[list[int]]]:
     """Split tokens by unicode.
 
     Args:
@@ -70,7 +69,7 @@ def split_tokens_on_unicode(
 
 def split_tokens_on_spaces(
     tokens: torch.Tensor, tokenizer: Tokenizer
-) -> tuple[list[str], list[int]]:
+) -> tuple[list[str], list[list[int]]]:
     """Split tokens on spaces.
 
     Args:
@@ -88,6 +87,7 @@ def split_tokens_on_spaces(
         special = subword_tokens[0] >= tokenizer.eot
         with_space = subword.startswith(" ")
         punctuation = subword.strip() in string.punctuation
+
         if special or with_space or punctuation:
             words.append(subword)
             word_tokens.append(subword_tokens)
@@ -102,6 +102,8 @@ def audio_text_forced_alignment(
     audio: torch.Tensor,
     text: str,
     model_name: str = "tiny",
+    min_audio_duration: int = 1600,
+    model: Optional[whisper.Whisper] = None,
     device: Optional[torch.device | str] = None,
 ) -> dict[str, tuple[float, float]]:
     """Get alignment mapping between audio and text.
@@ -111,13 +113,16 @@ def audio_text_forced_alignment(
         text (str): Text to align.
         model_name (str, optional): Name of Whisper model to use for this.
             Defaults to "tiny".
+        model (Optional[whisper.Whisper], optional): Existing model, if you have one.
+            Defaults to None.
         device (Optional[torch.device], optional): Device for model.
             Defaults to None.
 
     Returns:
         dict[str, tuple[float, float]]: Words mapped to their interval in audio.
     """
-    model, device = whisper_model(name=model_name, device=device)
+    model = model.to(device) if model else whisper.load_model(model_name, device=device)
+    device = model.device
 
     # Install hooks on the cross attention layers to receive attention weights.
     QKs = [None] * model.dims.n_text_layer  # Query-key matrices.
@@ -129,6 +134,7 @@ def audio_text_forced_alignment(
         )
 
     duration = len(audio[-1])
+
     mel = whisper.audio.log_mel_spectrogram(whisper.audio.pad_or_trim(audio)).to(device)
 
     # Language detected for tokenizer.
@@ -163,6 +169,10 @@ def audio_text_forced_alignment(
     w = weights / weights.norm(dim=-2, keepdim=True)
     matrix = w[-6:].mean(axis=(0, 1))
 
+    if matrix.nelement() == 0:
+        # No alignments and DTW will break after this.
+        return dict()
+
     alignment = dtw(-matrix.double().numpy())
 
     jumps = np.pad(np.diff(alignment.index1s), (1, 0), constant_values=1).astype(bool)
@@ -186,8 +196,9 @@ def trim_audio_to_text(
     audio: torch.Tensor,
     text: str,
     model_name: str = "tiny",
+    model: Optional[whisper.Whisper] = None,
     device: Optional[torch.device] = None,
-) -> torch.Tensor:
+) -> Optional[torch.Tensor]:
     """Trims audio to align with text.
 
     Notes:
@@ -199,6 +210,8 @@ def trim_audio_to_text(
         text (str): Text to align.
         model_name (str, optional): Name of Whisper model to use for this.
             Defaults to "tiny".
+        model (Optional[whisper.Whisper], optional): Existing model, if you have one.
+            Defaults to None.
         device (Optional[torch.device], optional): Device for model.
             Defaults to None.
 
@@ -206,7 +219,7 @@ def trim_audio_to_text(
         ValueError: When audio is not 2D.
 
     Returns:
-        torch.Tensor: 16kHz audio tensor, cut to fit text.
+        Optional[torch.Tensor]: 16kHz audio tensor, cut to fit text, None if empty audio.
     """
     if len(audio.shape) != 2:
         raise ValueError(
@@ -214,16 +227,21 @@ def trim_audio_to_text(
         )
 
     intervals = list(
-        audio_text_forced_alignment(audio, text, model_name, device).values()
+        audio_text_forced_alignment(
+            audio, text, model_name, model=model, device=device
+        ).values()
     )
 
-    start_sec: float = intervals[0][0]
-    end_sec: float = intervals[-1][1]
+    if intervals:
+        start_sec: float = intervals[0][0]
+        end_sec: float = intervals[-1][1]
 
-    return audio[
-        :,
-        # Do some conservative rounding in conversion here.
-        max(0, round(start_sec * 16000 - 0.5)) : min(
-            audio.shape[1] - 1, round(end_sec * 16000 + 0.5)
-        ),
-    ]
+        return audio[
+            :,
+            # Do some conservative rounding in conversion here.
+            max(0, round(start_sec * 16000 - 0.5)) : min(
+                audio.shape[1] - 1, round(end_sec * 16000 + 0.5)
+            ),
+        ]
+    else:
+        return None

@@ -9,6 +9,7 @@ def test_clsp_runs() -> None:
     """Test that CLSP doesn't explode."""
 
     clsp = CLSP(text_mask_percentage=0.2, speech_mask_percentage=0.2)
+
     loss = clsp(
         torch.randint(0, 256, (2, 120)),
         torch.randint(0, 8192, (2, 250)),
