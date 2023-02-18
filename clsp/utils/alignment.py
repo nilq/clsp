@@ -30,11 +30,11 @@ def whisper_model(
     Args:
         name (str): Whisper model name.
             Defaults to "tiny".
-        device (Optional[torch.device], optional): Device for encoder.
+        device (Optional[torch.device], optional): Device for model.
             Defaults to None.
 
     Returns:
-        tuple[nn.Module, torch.device]: Whisper encoder and its device.
+        tuple[nn.Module, torch.device]: Whisper model and its device.
     """
     model = whisper.load_model(name, device=device)
     return model, model.device
@@ -98,12 +98,25 @@ def split_tokens_on_spaces(
     return words, word_tokens
 
 
-def align_audio_and_text(
+def audio_text_forced_alignment(
     audio: torch.Tensor,
     text: str,
     model_name: str = "tiny",
     device: Optional[torch.device | str] = None,
-):
+) -> dict[str, tuple[float, float]]:
+    """Get alignment mapping between audio and text.
+
+    Args:
+        audio (torch.Tensor): 16kHz audio tensor.
+        text (str): Text to align.
+        model_name (str, optional): Name of Whisper model to use for this.
+            Defaults to "tiny".
+        device (Optional[torch.device], optional): Device for model.
+            Defaults to None.
+
+    Returns:
+        dict[str, tuple[float, float]]: Words mapped to their interval in audio.
+    """
     model, device = whisper_model(name=model_name, device=device)
 
     # Install hooks on the cross attention layers to receive attention weights.
@@ -143,7 +156,7 @@ def align_audio_and_text(
         logits = model(mel, tokens.unsqueeze(0))
 
     weights = torch.cat(QKs)  # layers * heads * tokens * frames
-    weights = weights[:, :, :, :duration // AUDIO_SAMPLES_PER_TOKEN].cpu()
+    weights = weights[:, :, :, : duration // AUDIO_SAMPLES_PER_TOKEN].cpu()
     weights = median_filter(weights, (1, 1, 1, medfilt_width))
     weights = torch.tensor(weights * qk_scale).softmax(dim=-1)
 
@@ -160,10 +173,57 @@ def align_audio_and_text(
     begin_times = jump_times[word_boundaries[:-1]]
     end_times = jump_times[word_boundaries[1:]]
 
-    alignments = {
-        word: [begin, end]
+    alignments: dict[str, tuple[float, float]] = {
+        word: (begin, end)
         for word, begin, end in zip(words[:-1], begin_times, end_times)
         if not word.startswith("<|") and word.strip() not in ".,!?、。"
     }
 
     return alignments
+
+
+def trim_audio_to_text(
+    audio: torch.Tensor,
+    text: str,
+    model_name: str = "tiny",
+    device: Optional[torch.device] = None,
+) -> torch.Tensor:
+    """Trims audio to align with text.
+
+    Notes:
+        This is useful when splitting text tokens to fit model and you then want to get
+        the corresponding audio embeddings for those tokens. Super nice if I do say so myself.
+
+    Args:
+        audio (torch.Tensor): 16kHz audio tensor.
+        text (str): Text to align.
+        model_name (str, optional): Name of Whisper model to use for this.
+            Defaults to "tiny".
+        device (Optional[torch.device], optional): Device for model.
+            Defaults to None.
+
+    Raises:
+        ValueError: When audio is not 2D.
+
+    Returns:
+        torch.Tensor: 16kHz audio tensor, cut to fit text.
+    """
+    if len(audio.shape) != 2:
+        raise ValueError(
+            f"I know this is lazy, but we only deal with 2D audio. Got {len(audio.shape)}"
+        )
+
+    intervals = list(
+        audio_text_forced_alignment(audio, text, model_name, device).values()
+    )
+
+    start_sec: float = intervals[0][0]
+    end_sec: float = intervals[-1][1]
+
+    return audio[
+        :,
+        # Do some conservative rounding in conversion here.
+        max(0, round(start_sec * 16000 - 0.5)) : min(
+            audio.shape[1] - 1, round(end_sec * 16000 + 0.5)
+        ),
+    ]
