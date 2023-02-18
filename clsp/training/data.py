@@ -135,7 +135,6 @@ class CloudDataset(Dataset):
 
 class TestDataset(Dataset):
     """Dataset for testing without real data."""
-    
 
     def __init__(self, size: int = 128) -> None:
         """Initialise dataset by size.
@@ -147,9 +146,6 @@ class TestDataset(Dataset):
         waveform, sr = torchaudio.load(
             Path(os.path.dirname(__file__)) / ".." / ".." / "data" / "joe.wav"
         )
-    
-        
-
 
     def __len__(self) -> int:
         """Length of dataset.
