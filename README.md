@@ -1,6 +1,6 @@
 # CLSP
 
-Attempt at training a proper CLSP (speech-CLIP).
+Attempt at training a proper speech-CLIP.
 
 ## Roadmap
 
