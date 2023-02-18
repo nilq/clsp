@@ -1,6 +1,6 @@
 # CLSP
 
-Adaptation and attempt at retraining TorToiSe's CLVP.
+Attempt at training a proper CLSP (speech-CLIP).
 
 ## Roadmap
 
