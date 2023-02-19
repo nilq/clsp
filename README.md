@@ -16,7 +16,7 @@ Attempt at training a proper speech-CLIP.
 ### Data things
 
 - [x] Split transcribed audio into aligned token-chunk audio pairs.
-- [ ] Process to encode this and translate tokens.
+- [x] Process to encode this and translate tokens.
 
 
 ## Training
