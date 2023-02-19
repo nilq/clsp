@@ -90,27 +90,6 @@ def encode_audio(
         segment = whisper.audio.pad_or_trim(mel[:, seek:], whisper.audio.N_FRAMES).to(
             device
         )
-        embeddings.append(model_encoder(segment.unsqueeze(0)))
+        embeddings.append(model_encoder(segment))
 
     return embeddings
-
-
-def encode_with_alignment(
-    audio: Union[str, torch.Tensor],
-    text: str,
-    name: str = "tiny",
-    device: Optional[torch.device | str] = None,
-) -> dict[str, torch.Tensor]:
-    """Get Whisper encodings for consistent audio frames.
-
-    Args:
-        audio (Union[str, torch.Tensor]): Path to file, or audio tensor (16kHz).
-        text (str): Transcript of audio passed.
-        name (str): Whisper model name.
-            Defaults to "tiny".
-        device (Optional[torch.device], optional): Device for encoder and embedding.
-            Defaults to None.
-
-    Returns:
-        dict[str, torch.Tensor]: Map of text to Whisper encoding of given audio.
-    """

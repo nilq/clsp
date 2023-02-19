@@ -11,6 +11,9 @@ from clsp.utils.alignment import (
     audio_text_forced_alignment,
 )
 
+from clsp.utils.speech import encode_audio
+from clsp.utils.text import encode_to_tensor
+
 from typing import Optional, Any
 
 
@@ -106,9 +109,6 @@ def slice_audio_and_text_by_token_windows(
             )
 
             if window_audio is None:
-                import pdb
-
-                pdb.set_trace()
                 # We are done.
                 # No more audio to be trimmed.
                 break
@@ -124,3 +124,58 @@ def slice_audio_and_text_by_token_windows(
 
     return slice_map
 
+
+def text_audio_embedding_windows(
+    audio: torch.Tensor,
+    text: str,
+    tokenizer: Any,
+    token_window_size: int,
+    words_per_second: int = 1,
+    alignment_window_overlap: int = 16000 // 2,
+    model_name: str = "tiny",
+    model: Optional[whisper.Whisper] = None,
+    device: Optional[torch.device] = None, 
+) -> list[tuple[torch.Tensor, torch.Tensor]]:
+    """From arbitrarily long audio and transcript, you get specified token-chunks with their aligned audio embedding.
+
+    Args:
+        audio (torch.Tensor): 16kHz audio tensor.
+        text (str): Transcript of audio.
+        tokenizer (Any): Tokenizer (probably tiktoken) used for tokenisation.
+        token_window_size (int): Length of token window to split into.
+        words_per_second (int, optional): Assumed words per second, used to estimate alignment window.
+            Alignment breaks if you overshoot way too much.
+            Defaults to 1.
+        alignment_window_overlap (int, optional): Aligment window overlap with last token window's end.
+            Overlap makes it likely to pick up aligned pair.
+            Defaults to `16000 // 2` i.e. half a second.
+        model_name (str, optional): Name of Whisper model to use for this.
+            Defaults to "tiny".
+        model (Optional[Whisper], optional): Existing model, if you have one.
+            Defaults to None.
+        device (Optional[torch.device], optional): Device for model.
+            Defaults to None.
+
+    Raises:
+        ValueError: When audio is not 2D.
+
+    Returns:
+        list[tuple[torch.Tensor, torch.Tensor]]: Chronologicial mapping between
+            tokens (see utils.text for text-encoder details) and their aligned audio embeddings.
+    """
+    # Encode audio returns a list of one element when we already have
+    # audio in Whisper-appropriate sized slices. :)
+    return [
+        (encode_to_tensor(text, device=device), encode_audio(aligned_audio)[0])
+        for text, aligned_audio in slice_audio_and_text_by_token_windows(
+            audio,
+            text,
+            tokenizer,
+            token_window_size,
+            words_per_second,
+            alignment_window_overlap,
+            model_name,
+            model,
+            device
+        ).items()
+    ]

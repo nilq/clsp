@@ -25,7 +25,6 @@ def test_processing_slice_aligned_text_and_audio() -> None:
         " and getting a cold plunge and doing all these different things, but it's still fat as fuck."
     )
 
-    # text = " hello hello okay so this is a test of whatever that tortoise guy wrote when he was super drunk"
     audio = torch.tensor(whisper.audio.load_audio("data/joe.wav")).unsqueeze(0)
     tokenizer = whisper.tokenizer.get_tokenizer(True)
 
