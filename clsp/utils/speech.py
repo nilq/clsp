@@ -9,6 +9,7 @@ import whisper
 from functools import cache
 from typing import Optional, Union, Any
 from whisper.audio import log_mel_spectrogram
+import types
 
 
 def detect_language(
@@ -94,8 +95,8 @@ def encoder(
     model = whisper.load_model(name, device=device)
 
     # This trick is illegal in 51 states.
-    model.encoder.forward = type(encoder_forward_with_embedding_output)(
-        encoder_forward_with_embedding_output, model.encoder, whisper.Whisper
+    model.encoder.forward = types.MethodType(
+        encoder_forward_with_embedding_output, model.encoder
     )
 
     return model.encoder, model.device
@@ -128,7 +129,7 @@ def encode_audio(
     for seek in range(0, number_of_frames, input_stride):
         segment = whisper.audio.pad_or_trim(mel[:, seek:], whisper.audio.N_FRAMES).to(
             device
-        )
+        ).unsqueeze(0) # Add batch dimension. :) 
         _, embedding_stack = model_encoder(segment)
 
         embeddings.append(embedding_stack)
