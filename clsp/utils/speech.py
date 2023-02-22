@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import whisper
 
 
@@ -44,10 +45,42 @@ def detect_language(
     return language
 
 
+def encoder_forward_with_embedding_output(self, x: torch.Tensor) -> tuple[torch.Tensor, list[torch.Tensor]]:
+    """Gangster forward-pass that collects and returns layer-wise embeddings.
+
+    Notes:
+        This is mostly just the AudioEncoder forward-pass.
+
+    Args:
+        x (torch.Tensor): Input tensor.
+    
+    Returns:
+        tuple[torch.Tensor, list[torch.Tensor]]: Output tensor of shape, and list of embeddings for encoder layers.
+    """
+    x = F.gelu(self.conv1(x))
+    x = F.gelu(self.conv2(x))
+    x = x.permute(0, 2, 1)
+
+    assert x.shape[1:] == self.positional_embedding.shape, "incorrect audio shape"
+    x = (x + self.positional_embedding).to(x.dtype)
+
+    embeddings: list[torch.Tensor] = []
+
+    for block in self.blocks:
+        x = block(x)
+        embeddings.append(x)
+
+    x = self.ln_post(x)
+    embeddings = torch.stack(embeddings, axis=1)
+
+    return x, embeddings
+
+
+
 def encoder(
     name: str = "tiny", device: Optional[torch.device | str] = None
 ) -> tuple[nn.Module, torch.device]:
-    """Get Whisper encoder by model name.
+    """Get Whisper hacked encoder by model name.
 
     Args:
         name (str): Whisper model name.
@@ -59,6 +92,12 @@ def encoder(
         tuple[nn.Module, torch.device]: Whisper encoder and its device.
     """
     model = whisper.load_model(name, device=device)
+
+    # This trick is illegal in 51 states.
+    model.encoder.forward = type(encoder_forward_with_embedding_output)(
+        encoder_forward_with_embedding_output, model.encoder, whisper.Whisper
+    )
+
     return model.encoder, model.device
 
 
@@ -90,6 +129,8 @@ def encode_audio(
         segment = whisper.audio.pad_or_trim(mel[:, seek:], whisper.audio.N_FRAMES).to(
             device
         )
-        embeddings.append(model_encoder(segment))
+        _, embedding_stack = model_encoder(segment)
+
+        embeddings.append(embedding_stack)
 
     return embeddings

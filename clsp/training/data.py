@@ -10,6 +10,7 @@ import torchaudio.functional as F
 
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
+from clsp.data.processing import text_audio_embedding_windows
 
 from clsp.utils.storage import gcs_download_bytes, bigquery_query
 from clsp.utils.speech import encode_audio
@@ -142,9 +143,25 @@ class TestDataset(Dataset):
         Args:
             size (int): Size of dataset.
         """
-        whisper = whisper.load_model("tiny")
-        waveform, sr = torchaudio.load(
-            Path(os.path.dirname(__file__)) / ".." / ".." / "data" / "joe.wav"
+        text = (
+            " on 60 Minutes, they interviewed her."
+            " She's some new woman who works in the White House."
+            " And they asked her about obesity."
+            " She said the number one cause of obesity is genetics."
+            " And it doesn't matter what you do,"
+            " like you could be a person who has a perfect diet and exercises and sleeps right and you're still obese."
+            " And the health experts went fucking nuts. Like that's not what the data shows."
+            " The data shows that most people who are obese have obese parents and they come from an obese family,"
+            " but they're all doing the wrong thing. It's not, there's not like a person in that family that's"
+            " eating grass fed steak and running marathons and lifting weights and getting up at six in the morning"
+            " and getting a cold plunge and doing all these different things, but it's still fat as fuck."
+        )
+
+        audio = torch.tensor(whisper.audio.load_audio("data/joe.wav")).unsqueeze(0)
+        tokenizer = whisper.tokenizer.get_tokenizer(True)
+
+        self.data = text_audio_embedding_windows(
+            audio, text, tokenizer, token_window_size=20, model_name="tiny"
         )
 
     def __len__(self) -> int:
@@ -153,7 +170,7 @@ class TestDataset(Dataset):
         Returns:
             int: Length of dataset.
         """
-        return self.size
+        return len(self.data)
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Get random data.
@@ -164,7 +181,7 @@ class TestDataset(Dataset):
         Returns:
             tuple[torch.Tensor, torch.Tensor]: Text and speech tokens.
         """
-        return (torch.randint(0, 256, (2, 120)), torch.randint(0, 8192, (2, 250)))
+        return self.data[index]
 
 
 # Distributed training.

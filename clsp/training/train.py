@@ -105,4 +105,11 @@ def main(rank: int, world_size: int) -> None:
 if __name__ == "__main__":
     world_size = 1
 
+    dataset = TestDataset()
+
+    import pdb
+    pdb.set_trace()
+
+    del dataset
+
     mp.spawn(main, args=(world_size,), nprocs=world_size)

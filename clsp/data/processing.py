@@ -17,6 +17,7 @@ from clsp.utils.text import encode_to_tensor
 from typing import Optional, Any
 
 
+# This was a sleepy design, hopefully it's what's needed.
 def slice_audio_and_text_by_token_windows(
     audio: torch.Tensor,
     text: str,
