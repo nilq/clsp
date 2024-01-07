@@ -1,5 +1,7 @@
 # CLSP
 
+> Bonus: Features a useful toolkit for extracting timestep-aligned token<->embedding<->spectrogram spans.
+
 Attempt at training a proper speech-CLIP.
 
 ## Roadmap
